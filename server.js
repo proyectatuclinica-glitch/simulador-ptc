@@ -13,7 +13,7 @@ require("dotenv").config();
 const express = require("express");
 const basicAuth = require("basic-auth");
 const { GoogleGenAI } = require("@google/genai");
-const CASES = require("./prompts");
+const { CASES, CANAS_OPTIONS, CANAS_TEXT, FOTOTIPO_OPTIONS, FOTOTIPO_TEXT } = require("./prompts");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,9 +51,15 @@ app.get("/api/cases", (req, res) => {
   res.json(CASES.map(({ value, label }) => ({ value, label })));
 });
 
+// Opciones para los desplegables ajustables (canas / tono de piel).
+// Son opcionales: si el cliente deja el valor por defecto, no cambian nada.
+app.get("/api/options", (req, res) => {
+  res.json({ canas: CANAS_OPTIONS, fototipos: FOTOTIPO_OPTIONS });
+});
+
 app.post("/api/simulate", async (req, res) => {
   try {
-    const { imageBase64, mimeType, caseValue } = req.body || {};
+    const { imageBase64, mimeType, caseValue, canas, fototipo } = req.body || {};
 
     if (!imageBase64 || !mimeType || !caseValue) {
       return res.status(400).json({ error: "Faltan datos: imagen, tipo de imagen o tipo de caso." });
@@ -64,10 +70,18 @@ app.post("/api/simulate", async (req, res) => {
       return res.status(400).json({ error: "Tipo de caso no reconocido." });
     }
 
+    // Anade al prompt base las coletillas de canas/tono de piel, si se han elegido.
+    const extras = [];
+    if (canas && CANAS_TEXT[canas]) extras.push(CANAS_TEXT[canas]);
+    if (fototipo && FOTOTIPO_TEXT[fototipo]) extras.push(FOTOTIPO_TEXT[fototipo]);
+    const finalPrompt = extras.length
+      ? `${selectedCase.prompt}\n\n${extras.join(" ")}`
+      : selectedCase.prompt;
+
     const response = await ai.models.generateContent({
       model: MODEL,
       contents: [
-        { text: selectedCase.prompt },
+        { text: finalPrompt },
         { inlineData: { mimeType, data: imageBase64 } }
       ]
     });
