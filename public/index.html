@@ -170,6 +170,52 @@
     background: var(--bg);
     color: var(--text);
   }
+  .select-field input[type="text"] {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+  .select-field input[type="text"]::placeholder { color: var(--muted-2); }
+  .select-field input[type="text"]:focus {
+    outline: none;
+    border-color: var(--brand-2);
+  }
+
+  /* Ficha del resultado: nombre paciente / tratamiento / clinica */
+  .result-plate {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .plate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .plate-row span:empty { display: none; }
+  .plate-sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--muted-2);
+    letter-spacing: 0.02em;
+  }
+  .plate-sub span:empty { display: none; }
+  .plate-sub .plate-brand { text-align: right; }
 
   /* Zona de subida */
   .dropzone {
@@ -349,6 +395,18 @@
     </header>
 
     <div class="panel">
+      <label class="field-label">Datos de la ficha</label>
+      <div class="select-row">
+        <div class="select-field">
+          <label for="patientNameInput">Nombre del paciente</label>
+          <input type="text" id="patientNameInput" placeholder="Opcional" autocomplete="off" />
+        </div>
+        <div class="select-field">
+          <label for="clinicNameInput">Nombre de la clínica</label>
+          <input type="text" id="clinicNameInput" placeholder="Tu clínica" autocomplete="off" />
+        </div>
+      </div>
+
       <label class="field-label">Tipo de caso</label>
       <div class="segmented" id="segmented"></div>
 
@@ -400,6 +458,18 @@
           <span class="tag after">Después</span>
           <input type="range" id="compareSlider" min="0" max="100" value="50" />
         </div>
+
+        <div class="result-plate" id="resultPlate">
+          <div class="plate-row">
+            <span id="platePatient"></span>
+            <span id="plateTreatment"></span>
+          </div>
+          <div class="plate-sub">
+            <span id="plateClinic"></span>
+            <span class="plate-brand">Generado con MicroStudioAI · Proyecta tu Clínica</span>
+          </div>
+        </div>
+
         <button id="downloadBtn" type="button">Descargar imagen</button>
       </div>
 
@@ -425,23 +495,50 @@
   const canasSelect = document.getElementById("canasSelect");
   const fototipoSelect = document.getElementById("fototipoSelect");
   const downloadBtn = document.getElementById("downloadBtn");
+  const patientNameInput = document.getElementById("patientNameInput");
+  const clinicNameInput = document.getElementById("clinicNameInput");
+  const platePatient = document.getElementById("platePatient");
+  const plateTreatment = document.getElementById("plateTreatment");
+  const plateClinic = document.getElementById("plateClinic");
 
   let selectedFile = null;
   let selectedCase = null;
+  let selectedCaseLabel = null;
+
+  // ---- Nombre de la clinica: se guarda en este dispositivo (localStorage) ----
+  const CLINIC_KEY = "ptc_clinic_name";
+  try {
+    clinicNameInput.value = localStorage.getItem(CLINIC_KEY) || "";
+  } catch (e) {}
+  clinicNameInput.addEventListener("input", () => {
+    try { localStorage.setItem(CLINIC_KEY, clinicNameInput.value); } catch (e) {}
+    updatePlate();
+  });
+  patientNameInput.addEventListener("input", updatePlate);
+
+  function updatePlate() {
+    const patient = patientNameInput.value.trim();
+    const clinic = clinicNameInput.value.trim();
+    platePatient.textContent = patient ? `Paciente: ${patient}` : "";
+    plateTreatment.textContent = selectedCaseLabel || "";
+    plateClinic.textContent = clinic;
+  }
 
   // ---- Carga los tipos de caso (definidos en prompts.js, backend) ----
   fetch("/api/cases")
     .then((r) => r.json())
     .then((cases) => {
       segmented.innerHTML = cases
-        .map((c, i) => `<button type="button" data-value="${c.value}" class="${i === 0 ? "active" : ""}">${c.label}</button>`)
+        .map((c, i) => `<button type="button" data-value="${c.value}" data-label="${c.label}" class="${i === 0 ? "active" : ""}">${c.label}</button>`)
         .join("");
       selectedCase = cases[0]?.value || null;
+      selectedCaseLabel = cases[0]?.label || null;
       segmented.querySelectorAll("button").forEach((btn) => {
         btn.addEventListener("click", () => {
           segmented.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
           btn.classList.add("active");
           selectedCase = btn.dataset.value;
+          selectedCaseLabel = btn.dataset.label;
         });
       });
     })
@@ -532,6 +629,7 @@
       compareWrap.style.display = "block";
       compareSlider.value = 50;
       requestAnimationFrame(initCompare);
+      updatePlate();
       setStatus("Listo.");
     } catch (err) {
       setStatus("Error: " + err.message);
@@ -540,15 +638,76 @@
     }
   });
 
-  // ---- Descargar la imagen generada ----
+  // ---- Descargar la imagen generada, con la ficha (paciente / tratamiento /
+  // clinica / marca) incrustada como pie de foto, para que viaje pegada a la
+  // imagen cuando el paciente la comparta por WhatsApp o similar. ----
   downloadBtn.addEventListener("click", () => {
     if (!afterImg.src) return;
-    const a = document.createElement("a");
-    a.href = afterImg.src;
-    a.download = "simulacion-resultado.png";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+
+    const img = new Image();
+    img.onload = () => {
+      const footer = Math.max(90, Math.round(img.naturalHeight * 0.11));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight + footer;
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#141929";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.fillRect(0, img.naturalHeight, canvas.width, footer);
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, img.naturalHeight + 0.5);
+      ctx.lineTo(canvas.width, img.naturalHeight + 0.5);
+      ctx.stroke();
+
+      const pad = Math.max(20, Math.round(canvas.width * 0.03));
+      const patient = patientNameInput.value.trim();
+      const clinic = clinicNameInput.value.trim();
+      const treatment = selectedCaseLabel || "";
+
+      const mainSize = Math.max(16, Math.round(canvas.width * 0.024));
+      const subSize = Math.max(12, Math.round(canvas.width * 0.016));
+      const rowY1 = img.naturalHeight + footer * 0.4;
+      const rowY2 = img.naturalHeight + footer * 0.74;
+
+      ctx.textBaseline = "middle";
+      ctx.font = `600 ${mainSize}px Arial, sans-serif`;
+      ctx.fillStyle = "#f5f6f8";
+      if (patient) {
+        ctx.textAlign = "left";
+        ctx.fillText(`Paciente: ${patient}`, pad, rowY1);
+      }
+      if (treatment) {
+        ctx.textAlign = "right";
+        ctx.fillText(treatment, canvas.width - pad, rowY1);
+      }
+
+      ctx.font = `500 ${subSize}px Arial, sans-serif`;
+      ctx.fillStyle = "#8b8f9a";
+      if (clinic) {
+        ctx.textAlign = "left";
+        ctx.fillText(clinic, pad, rowY2);
+      }
+      ctx.textAlign = "right";
+      ctx.fillText("Generado con MicroStudioAI · Proyecta tu Clínica", canvas.width - pad, rowY2);
+
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "simulacion-resultado.png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    };
+    img.src = afterImg.src;
   });
 
   // ---- Slider antes/despues ----
