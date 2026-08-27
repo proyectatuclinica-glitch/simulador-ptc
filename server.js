@@ -83,7 +83,16 @@ app.post("/api/simulate", async (req, res) => {
       contents: [
         { text: finalPrompt },
         { inlineData: { mimeType, data: imageBase64 } }
-      ]
+      ],
+      // Pide la resolucion mas alta razonable (por defecto el modelo genera
+      // a 1K). A mas resolucion, mas detalle de textura/foliculo - relevante
+      // para que la simulacion se vea nitida y no "borrosa". Coste extra
+      // minimo (unos 3-4 centimos mas por imagen).
+      config: {
+        imageConfig: {
+          imageSize: "2K"
+        }
+      }
     });
 
     const parts = response?.candidates?.[0]?.content?.parts || [];
