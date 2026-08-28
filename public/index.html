@@ -316,7 +316,21 @@
   .dropzone .dz-sub { font-size: 0.82rem; color: var(--muted-2); margin-top: 4px; }
   .dropzone.has-file .dz-preview {
     width: 100%; max-height: 180px; object-fit: contain; border-radius: 10px; margin-bottom: 10px;
+    transition: filter 0.35s ease;
   }
+
+  /* Efecto de procesado sobre la foto mientras la IA genera: la imagen
+     se desenfoca y por encima corre una animacion de particulas + linea
+     de escaneo, para que se note visualmente que "algo esta pasando". */
+  .process-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .dropzone.processing .process-overlay { opacity: 1; }
+  .dropzone.processing .dz-preview { filter: blur(7px) brightness(0.55) saturate(1.15); }
 
   button#generateBtn {
     width: 100%;
@@ -350,7 +364,8 @@
   @keyframes pulse { 0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
 
   .loading-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
-  .particle-canvas { display: block; flex-shrink: 0; }
+  .spinner-icon { width: 24px; height: 24px; animation: spin 1.1s linear infinite; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
   /* Boton secundario: descargar resultado */
   button#downloadBtn {
@@ -516,6 +531,7 @@
           <div class="dz-text">Arrastra una foto o haz clic</div>
           <div class="dz-sub">JPG o PNG</div>
         </div>
+        <canvas id="processOverlay" class="process-overlay"></canvas>
       </div>
 
       <button id="generateBtn" disabled>Generar simulación</button>
@@ -583,6 +599,7 @@
   const platePatient = document.getElementById("platePatient");
   const plateTreatment = document.getElementById("plateTreatment");
   const plateClinic = document.getElementById("plateClinic");
+  const processOverlay = document.getElementById("processOverlay");
 
   let selectedFile = null;
   let selectedCase = null;
@@ -655,9 +672,10 @@
     };
   }
 
-  // ---- Particulas durante la generacion: refuerzan la sensacion de
-  // "IA procesando" sin romper la estetica minimalista. ----
-  let particleAnimId = null;
+  // ---- Efecto de procesado sobre la foto: mientras la IA genera, la
+  // imagen subida se desenfoca (via CSS) y por encima corre una animacion
+  // de particulas + una linea de escaneo, en los colores de marca. ----
+  let photoOverlayAnimId = null;
   function mixColor(c1, c2, t) {
     const p1 = parseInt(c1.slice(1), 16);
     const p2 = parseInt(c2.slice(1), 16);
@@ -668,50 +686,60 @@
     const b = Math.round(b1 + (b2 - b1) * t);
     return `rgb(${r},${g},${b})`;
   }
-  function startParticles(canvas) {
-    if (!canvas) return;
+  function startPhotoOverlay(canvas, container) {
+    if (!canvas || !container) return;
     const dpr = window.devicePixelRatio || 1;
-    const size = 26;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = size + "px";
-    canvas.style.height = size + "px";
+    const rect = container.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
     const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    const cx = size / 2, cy = size / 2;
-    const count = 10;
-    const particles = Array.from({ length: count }, (_, i) => ({
-      angle: (i / count) * Math.PI * 2,
-      radius: 5 + Math.random() * 5,
-      speed: 0.018 + Math.random() * 0.02,
-      size: 1 + Math.random() * 1.3,
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const count = 34;
+    const particles = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: (Math.random() - 0.5) * 0.35,
+      size: 1 + Math.random() * 2,
       t: Math.random() * 10
     }));
+    let scanY = 0;
 
     function frame() {
-      ctx.clearRect(0, 0, size, size);
+      ctx.clearRect(0, 0, w, h);
+
+      scanY = (scanY + 1.4) % (h + 70);
+      const grad = ctx.createLinearGradient(0, scanY - 35, 0, scanY + 35);
+      grad.addColorStop(0, "rgba(25,168,179,0)");
+      grad.addColorStop(0.5, "rgba(25,168,179,0.28)");
+      grad.addColorStop(1, "rgba(25,168,179,0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, scanY - 35, w, 70);
+
       particles.forEach((p, i) => {
-        p.angle += p.speed;
-        p.t += 0.05;
-        const wobble = Math.sin(p.t) * 1.5;
-        const r = p.radius + wobble;
-        const x = cx + Math.cos(p.angle) * r;
-        const y = cy + Math.sin(p.angle) * r;
-        const tColor = (Math.sin(p.angle + i) + 1) / 2;
+        p.x += p.vx; p.y += p.vy; p.t += 0.045;
+        if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+        const tColor = (Math.sin(p.t + i) + 1) / 2;
         ctx.beginPath();
         ctx.fillStyle = mixColor("#4728A2", "#19A8B3", tColor);
-        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(p.t);
-        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.globalAlpha = 0.45 + 0.45 * Math.sin(p.t);
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
       });
       ctx.globalAlpha = 1;
-      particleAnimId = requestAnimationFrame(frame);
+      photoOverlayAnimId = requestAnimationFrame(frame);
     }
     frame();
   }
-  function stopParticles() {
-    if (particleAnimId) cancelAnimationFrame(particleAnimId);
-    particleAnimId = null;
+  function stopPhotoOverlay() {
+    if (photoOverlayAnimId) cancelAnimationFrame(photoOverlayAnimId);
+    photoOverlayAnimId = null;
   }
 
   // ---- Carga los tipos de caso (definidos en prompts.js, backend) ----
@@ -786,14 +814,15 @@
   }
 
   function setStatus(html) { statusRow.innerHTML = html; }
-  const loadingDots = `<div class="loading-row"><canvas id="particleCanvas" class="particle-canvas"></canvas><span>Generando</span><div class="dots"><span></span><span></span><span></span></div></div>`;
+  const loadingDots = `<div class="loading-row"><img src="/icon.png" class="spinner-icon" onerror="this.style.display='none'" alt="" /><span>Generando</span><div class="dots"><span></span><span></span><span></span></div></div>`;
 
   generateBtn.addEventListener("click", async () => {
     if (!selectedFile || !selectedCase) return;
 
     generateBtn.disabled = true;
     setStatus(loadingDots);
-    startParticles(document.getElementById("particleCanvas"));
+    dropzone.classList.add("processing");
+    startPhotoOverlay(processOverlay, dropzone);
     compareWrap.style.display = "none";
 
     try {
@@ -823,7 +852,8 @@
     } catch (err) {
       setStatus("Error: " + err.message);
     } finally {
-      stopParticles();
+      dropzone.classList.remove("processing");
+      stopPhotoOverlay();
       generateBtn.disabled = false;
     }
   });
