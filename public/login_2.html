@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MicroStudioAI</title>
+<link rel="icon" href="/icon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-1: #4728A2;
+    --brand-2: #19A8B3;
+    --bg: #141929;
+    --panel: rgba(255, 255, 255, 0.04);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text: #f5f6f8;
+    --muted: #8b8f9a;
+    --muted-2: #55585f;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    width: 900px;
+    height: 900px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--brand-1) 22%, transparent) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+  #ambientCanvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .login-wrap { width: 100%; max-width: 420px; position: relative; z-index: 1; text-align: center; }
+  .logo-img { max-height: 100px; max-width: min(400px, 100%); margin: 0 auto 28px; display: block; }
+  .logo-fallback {
+    display: none;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: 1.6rem;
+    margin-bottom: 24px;
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .slogan {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 40px;
+  }
+  .gradient-word {
+    color: var(--brand-2);
+    background: linear-gradient(90deg,
+      #f5f6f8 0%, #f5f6f8 40%,
+      var(--brand-2) 47%, var(--brand-1) 53%,
+      #f5f6f8 60%, #f5f6f8 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shineSweep 4.2s linear infinite;
+  }
+  @keyframes shineSweep {
+    0% { background-position: 200% 0; }
+    100% { background-position: 0% 0; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 22px;
+    padding: 34px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    text-align: left;
+  }
+  label.field-label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .field { margin-bottom: 18px; }
+  .field input {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 14px 14px;
+    font-size: 0.95rem;
+    font-family: inherit;
+  }
+  .field input:focus { outline: none; border-color: var(--brand-2); }
+
+  button#loginBtn {
+    width: 100%;
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-1) 35%, transparent);
+  }
+  button#loginBtn:hover:not(:disabled) { transform: translateY(-1px); }
+  button#loginBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .error-msg {
+    margin-top: 14px;
+    font-size: 0.85rem;
+    color: #ff9a9a;
+    text-align: center;
+    min-height: 18px;
+  }
+  .legal-notice {
+    font-size: 0.74rem;
+    color: var(--muted);
+    text-align: center;
+    margin-top: 26px;
+    opacity: 0.9;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+  <canvas id="ambientCanvas"></canvas>
+  <div class="login-wrap">
+    <img id="logoImg" class="logo-img" src="/logo.png" alt="Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';" />
+    <div id="logoFallback" class="logo-fallback">Proyecta tu Clínica</div>
+    <p class="slogan"><span class="gradient-word">Make the invisible visible.</span></p>
+
+    <div class="panel">
+      <form id="loginForm">
+        <div class="field">
+          <label class="field-label" for="user">Usuario</label>
+          <input type="text" id="user" name="user" autocomplete="username" autocapitalize="off" autocorrect="off" required />
+        </div>
+        <div class="field">
+          <label class="field-label" for="pass">Contraseña</label>
+          <input type="password" id="pass" name="pass" autocomplete="current-password" required />
+        </div>
+        <button id="loginBtn" type="submit">Entrar</button>
+        <div class="error-msg" id="errorMsg"></div>
+      </form>
+    </div>
+
+    <div class="legal-notice">Tecnología desarrollada por Proyecta tu Clínica. Uso bajo licencia — prohibida su copia, ingeniería inversa o distribución sin autorización.</div>
+  </div>
+
+<script>
+  // ---- Particulas ambientales de fondo: flotan lentas por toda la
+  // pantalla, en los colores de marca, para dar ese punto "vivo" y
+  // tecnologico sin robar atencion al formulario. ----
+  (function () {
+    const canvas = document.getElementById("ambientCanvas");
+    const ctx = canvas.getContext("2d");
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let particles = [];
+
+    function mixColor(c1, c2, t) {
+      const p1 = parseInt(c1.slice(1), 16);
+      const p2 = parseInt(c2.slice(1), 16);
+      const r1 = (p1 >> 16) & 255, g1 = (p1 >> 8) & 255, b1 = p1 & 255;
+      const r2 = (p2 >> 16) & 255, g2 = (p2 >> 8) & 255, b2 = p2 & 255;
+      const r = Math.round(r1 + (r2 - r1) * t);
+      const g = Math.round(g1 + (g2 - g1) * t);
+      const b = Math.round(b1 + (b2 - b1) * t);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function resize() {
+      const w = window.innerWidth, h = window.innerHeight;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+      const count = Math.round((w * h) / 12000);
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.16,
+        vy: (Math.random() - 0.5) * 0.16,
+        size: 1.4 + Math.random() * 2.6,
+        t: Math.random() * 10
+      }));
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function frame() {
+      const w = window.innerWidth, h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
+      particles.forEach((p, i) => {
+        p.x += p.vx; p.y += p.vy; p.t += 0.012;
+        if (p.x < -10) p.x = w + 10; if (p.x > w + 10) p.x = -10;
+        if (p.y < -10) p.y = h + 10; if (p.y > h + 10) p.y = -10;
+        const tColor = (Math.sin(p.t + i) + 1) / 2;
+        const color = mixColor("#4728A2", "#19A8B3", tColor);
+        ctx.beginPath();
+        ctx.fillStyle = color;
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 6;
+        ctx.globalAlpha = 0.4 + 0.35 * Math.sin(p.t);
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  })();
+
+  // ---- Envio del login ----
+  const form = document.getElementById("loginForm");
+  const loginBtn = document.getElementById("loginBtn");
+  const errorMsg = document.getElementById("errorMsg");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    loginBtn.disabled = true;
+    errorMsg.textContent = "";
+    try {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user: document.getElementById("user").value.trim(),
+          pass: document.getElementById("pass").value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "No se pudo iniciar sesión.");
+      window.location.href = "/";
+    } catch (err) {
+      errorMsg.textContent = err.message;
+      loginBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
