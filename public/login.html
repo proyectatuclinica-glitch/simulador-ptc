@@ -121,6 +121,27 @@
     font-family: inherit;
   }
   .field input:focus { outline: none; border-color: var(--brand-2); }
+  .field-wrap { position: relative; }
+  .field-wrap input { padding-right: 46px; }
+  .toggle-pass {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .toggle-pass:hover { color: var(--text); }
+  .toggle-pass svg { width: 20px; height: 20px; }
+  .toggle-pass .icon-eye-off { display: none; }
+  .toggle-pass.is-visible .icon-eye { display: none; }
+  .toggle-pass.is-visible .icon-eye-off { display: block; }
 
   button#loginBtn {
     width: 100%;
@@ -172,7 +193,13 @@
         </div>
         <div class="field">
           <label class="field-label" for="pass">Contraseña</label>
-          <input type="password" id="pass" name="pass" autocomplete="current-password" required />
+          <div class="field-wrap">
+            <input type="password" id="pass" name="pass" autocomplete="current-password" required />
+            <button type="button" class="toggle-pass" id="togglePass" aria-label="Mostrar contraseña">
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a18.6 18.6 0 0 1 4.22-5.06M9.9 4.24A10.4 10.4 0 0 1 12 4c7 0 11 7 11 7a18.6 18.6 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
         </div>
         <button id="loginBtn" type="submit">Entrar</button>
         <div class="error-msg" id="errorMsg"></div>
@@ -247,6 +274,16 @@
     }
     requestAnimationFrame(frame);
   })();
+
+  // ---- Mostrar/ocultar contraseña ----
+  const togglePass = document.getElementById("togglePass");
+  const passInput = document.getElementById("pass");
+  togglePass.addEventListener("click", () => {
+    const isVisible = passInput.type === "text";
+    passInput.type = isVisible ? "password" : "text";
+    togglePass.classList.toggle("is-visible", !isVisible);
+    togglePass.setAttribute("aria-label", isVisible ? "Mostrar contraseña" : "Ocultar contraseña");
+  });
 
   // ---- Envio del login ----
   const form = document.getElementById("loginForm");
