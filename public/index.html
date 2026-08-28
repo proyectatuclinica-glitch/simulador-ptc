@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Simulador de resultado</title>
+<title>Simulador de transformación</title>
 <link rel="icon" href="/icon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -84,6 +84,24 @@
     font-weight: 600;
     letter-spacing: -0.01em;
     margin: 8px 0 0;
+  }
+  /* Palabra con barrido de degradado continuo: blanco de base, con la
+     franja de colores de marca pasando por encima en bucle. */
+  .gradient-word {
+    color: var(--brand-2);
+    background: linear-gradient(90deg,
+      #f5f6f8 0%, #f5f6f8 38%,
+      var(--brand-2) 48%, var(--brand-1) 58%,
+      #f5f6f8 68%, #f5f6f8 100%);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shineSweep 3.6s linear infinite;
+  }
+  @keyframes shineSweep {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
   }
 
   .panel {
@@ -477,7 +495,7 @@
       <img id="logoImg" class="logo-img" src="/logo.png" alt="Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';" />
       <div id="logoFallback" class="logo-fallback">Proyecta tu Clínica</div>
       <div class="eyebrow">Tecnología · Precisión · Resultado</div>
-      <h1>Simulador de resultado</h1>
+      <h1>Simulador de <span class="gradient-word">transformación</span></h1>
     </header>
 
     <div class="panel">
