@@ -489,6 +489,25 @@
     opacity: 0.65;
     line-height: 1.4;
   }
+  .footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 16px;
+  }
+  .logout-link {
+    display: inline-block;
+    margin: 0;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .logout-link:hover { color: var(--text); }
 </style>
 </head>
 <body>
@@ -594,6 +613,10 @@
 
       <div class="disclaimer">Simulación orientativa generada por IA. No constituye un resultado clínico garantizado.</div>
       <div class="legal-notice">Tecnología desarrollada por Proyecta tu Clínica. Uso bajo licencia — prohibida su copia, ingeniería inversa o distribución sin autorización.</div>
+      <div class="footer-links">
+        <a id="statsLink" href="/admin.html" class="logout-link" style="display:none;">Ver estadísticas</a>
+        <button id="logoutBtn" type="button" class="logout-link">Cerrar sesión</button>
+      </div>
     </div>
   </div>
 
@@ -962,6 +985,26 @@
   }
   compareSlider.addEventListener("input", () => updateCompare(compareSlider.value));
   window.addEventListener("resize", () => { if (compareWrap.style.display !== "none") updateCompare(compareSlider.value); });
+
+  // ---- Cerrar sesion (util en tablet/ordenador compartido entre clinicas) ----
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      try { await fetch("/logout", { method: "POST" }); } catch (e) {}
+      window.location.href = "/login.html";
+    });
+  }
+
+  // ---- Muestra "Ver estadisticas" solo si el usuario logueado es admin ----
+  fetch("/api/me")
+    .then((r) => r.json())
+    .then((me) => {
+      if (me && me.isAdmin) {
+        const statsLink = document.getElementById("statsLink");
+        if (statsLink) statsLink.style.display = "inline-block";
+      }
+    })
+    .catch(() => {});
 </script>
 </body>
 </html>
