@@ -108,7 +108,7 @@ function getCookie(req, name) {
 app.get("/login.html", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
-app.get(["/logo.png", "/icon.png"], (req, res) => {
+app.get(["/logo.png", "/icon.png", "/manifest.json", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"], (req, res) => {
   res.sendFile(path.join(__dirname, "public", req.path));
 });
 
