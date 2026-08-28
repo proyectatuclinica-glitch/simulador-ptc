@@ -186,6 +186,78 @@
     border-color: var(--brand-2);
   }
 
+  /* Desplegable personalizado (Canas / Tono de piel): sustituye al
+     <select> nativo del sistema operativo para que la estetica sea
+     100% la del software, no la del navegador. */
+  .custom-select {
+    position: relative;
+  }
+  .custom-select .cs-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .custom-select .cs-trigger:hover {
+    border-color: color-mix(in srgb, var(--brand-2) 50%, var(--panel-border));
+  }
+  .custom-select.open .cs-trigger { border-color: var(--brand-2); }
+  .custom-select .cs-label { text-align: left; }
+  .custom-select .cs-chevron {
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+  }
+  .custom-select.open .cs-chevron { transform: rotate(180deg); }
+
+  .custom-select .cs-panel {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 6px);
+    background: #1b2136;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    z-index: 20;
+    max-height: 220px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .custom-select.open .cs-panel {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .custom-select .cs-option {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .custom-select .cs-option:hover { background: rgba(255,255,255,0.07); }
+  .custom-select .cs-option.selected {
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    color: white;
+    font-weight: 600;
+  }
+
   /* Ficha del resultado: nombre paciente / tratamiento / clinica */
   .result-plate {
     margin-top: 10px;
@@ -278,8 +350,7 @@
   @keyframes pulse { 0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
 
   .loading-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
-  .spinner-icon { width: 24px; height: 24px; animation: spin 1.1s linear infinite; }
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .particle-canvas { display: block; flex-shrink: 0; }
 
   /* Boton secundario: descargar resultado */
   button#downloadBtn {
@@ -390,7 +461,7 @@
     <header>
       <img id="logoImg" class="logo-img" src="/logo.png" alt="Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';" />
       <div id="logoFallback" class="logo-fallback">Proyecta tu Clínica</div>
-      <div class="eyebrow">Uso interno · en consulta</div>
+      <div class="eyebrow">Tecnología · Precisión · Resultado</div>
       <h1>Simulador de resultado</h1>
     </header>
 
@@ -413,12 +484,24 @@
       <label class="field-label">Ajustes opcionales</label>
       <div class="select-row">
         <div class="select-field">
-          <label for="canasSelect">Canas</label>
-          <select id="canasSelect"></select>
+          <label>Canas</label>
+          <div class="custom-select" id="canasSelect">
+            <button type="button" class="cs-trigger">
+              <span class="cs-label"></span>
+              <svg class="cs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="cs-panel" role="listbox"></div>
+          </div>
         </div>
         <div class="select-field">
-          <label for="fototipoSelect">Tono de piel</label>
-          <select id="fototipoSelect"></select>
+          <label>Tono de piel</label>
+          <div class="custom-select" id="fototipoSelect">
+            <button type="button" class="cs-trigger">
+              <span class="cs-label"></span>
+              <svg class="cs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="cs-panel" role="listbox"></div>
+          </div>
         </div>
       </div>
 
@@ -524,6 +607,113 @@
     plateClinic.textContent = clinic;
   }
 
+  // ---- Desplegable personalizado (sustituye al <select> nativo) ----
+  function buildCustomSelect(rootEl, items) {
+    let value = items[0]?.value ?? "";
+    const trigger = rootEl.querySelector(".cs-trigger");
+    const label = rootEl.querySelector(".cs-label");
+    const panel = rootEl.querySelector(".cs-panel");
+
+    function render() {
+      panel.innerHTML = items
+        .map((it) => `<div class="cs-option${it.value === value ? " selected" : ""}" data-value="${it.value}">${it.label}</div>`)
+        .join("");
+      const found = items.find((it) => it.value === value);
+      label.textContent = found ? found.label : "";
+      panel.querySelectorAll(".cs-option").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          value = opt.dataset.value;
+          render();
+          close();
+        });
+      });
+    }
+    function onOutside(e) {
+      if (!rootEl.contains(e.target)) close();
+    }
+    function open() {
+      rootEl.classList.add("open");
+      document.addEventListener("click", onOutside);
+    }
+    function close() {
+      rootEl.classList.remove("open");
+      document.removeEventListener("click", onOutside);
+    }
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      rootEl.classList.contains("open") ? close() : open();
+    });
+
+    render();
+    return {
+      get value() { return value; },
+      setItems(newItems) {
+        items = newItems;
+        if (!items.find((it) => it.value === value)) value = items[0]?.value ?? "";
+        render();
+      }
+    };
+  }
+
+  // ---- Particulas durante la generacion: refuerzan la sensacion de
+  // "IA procesando" sin romper la estetica minimalista. ----
+  let particleAnimId = null;
+  function mixColor(c1, c2, t) {
+    const p1 = parseInt(c1.slice(1), 16);
+    const p2 = parseInt(c2.slice(1), 16);
+    const r1 = (p1 >> 16) & 255, g1 = (p1 >> 8) & 255, b1 = p1 & 255;
+    const r2 = (p2 >> 16) & 255, g2 = (p2 >> 8) & 255, b2 = p2 & 255;
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+  function startParticles(canvas) {
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const size = 26;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const cx = size / 2, cy = size / 2;
+    const count = 10;
+    const particles = Array.from({ length: count }, (_, i) => ({
+      angle: (i / count) * Math.PI * 2,
+      radius: 5 + Math.random() * 5,
+      speed: 0.018 + Math.random() * 0.02,
+      size: 1 + Math.random() * 1.3,
+      t: Math.random() * 10
+    }));
+
+    function frame() {
+      ctx.clearRect(0, 0, size, size);
+      particles.forEach((p, i) => {
+        p.angle += p.speed;
+        p.t += 0.05;
+        const wobble = Math.sin(p.t) * 1.5;
+        const r = p.radius + wobble;
+        const x = cx + Math.cos(p.angle) * r;
+        const y = cy + Math.sin(p.angle) * r;
+        const tColor = (Math.sin(p.angle + i) + 1) / 2;
+        ctx.beginPath();
+        ctx.fillStyle = mixColor("#4728A2", "#19A8B3", tColor);
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(p.t);
+        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      particleAnimId = requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  function stopParticles() {
+    if (particleAnimId) cancelAnimationFrame(particleAnimId);
+    particleAnimId = null;
+  }
+
   // ---- Carga los tipos de caso (definidos en prompts.js, backend) ----
   fetch("/api/cases")
     .then((r) => r.json())
@@ -547,15 +737,13 @@
     });
 
   // ---- Carga los ajustes opcionales (canas / tono de piel) ----
+  let canasCS = null;
+  let fototipoCS = null;
   fetch("/api/options")
     .then((r) => r.json())
     .then((opts) => {
-      canasSelect.innerHTML = (opts.canas || [])
-        .map((o) => `<option value="${o.value}">${o.label}</option>`)
-        .join("");
-      fototipoSelect.innerHTML = (opts.fototipos || [])
-        .map((o) => `<option value="${o.value}">${o.label}</option>`)
-        .join("");
+      canasCS = buildCustomSelect(canasSelect, opts.canas && opts.canas.length ? opts.canas : [{ value: "", label: "Sin canas" }]);
+      fototipoCS = buildCustomSelect(fototipoSelect, opts.fototipos && opts.fototipos.length ? opts.fototipos : [{ value: "", label: "No especificar" }]);
     })
     .catch(() => {});
 
@@ -598,13 +786,14 @@
   }
 
   function setStatus(html) { statusRow.innerHTML = html; }
-  const loadingDots = `<div class="loading-row"><img src="/icon.png" class="spinner-icon" onerror="this.style.display='none'" alt="" /><span>Generando</span><div class="dots"><span></span><span></span><span></span></div></div>`;
+  const loadingDots = `<div class="loading-row"><canvas id="particleCanvas" class="particle-canvas"></canvas><span>Generando</span><div class="dots"><span></span><span></span><span></span></div></div>`;
 
   generateBtn.addEventListener("click", async () => {
     if (!selectedFile || !selectedCase) return;
 
     generateBtn.disabled = true;
     setStatus(loadingDots);
+    startParticles(document.getElementById("particleCanvas"));
     compareWrap.style.display = "none";
 
     try {
@@ -616,8 +805,8 @@
           imageBase64,
           mimeType: selectedFile.type || "image/jpeg",
           caseValue: selectedCase,
-          canas: canasSelect.value,
-          fototipo: fototipoSelect.value
+          canas: canasCS ? canasCS.value : "",
+          fototipo: fototipoCS ? fototipoCS.value : ""
         })
       });
 
@@ -634,6 +823,7 @@
     } catch (err) {
       setStatus("Error: " + err.message);
     } finally {
+      stopParticles();
       generateBtn.disabled = false;
     }
   });
