@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Simulador de resultado</title>
+<link rel="icon" href="/icon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     Color de marca: cambia estos dos valores y todo el diseño
+     se adapta (botón, brillo de fondo, marca del slider, etc.)
+     ============================================================ */
+  :root {
+    --brand-1: #4728A2;   /* color principal de marca */
+    --brand-2: #19A8B3;   /* color secundario (degradado) */
+
+    --bg: #141929;
+    --panel: rgba(255, 255, 255, 0.04);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text: #f5f6f8;
+    --muted: #8b8f9a;
+    --muted-2: #55585f;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 56px 20px;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Brillo suave de fondo, tipo pagina de producto */
+  body::before {
+    content: "";
+    position: fixed;
+    top: -20%;
+    left: 50%;
+    width: 900px;
+    height: 900px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, color-mix(in srgb, var(--brand-1) 22%, transparent) 0%, transparent 65%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { width: 100%; max-width: 640px; position: relative; z-index: 1; }
+
+  header { text-align: center; margin-bottom: 44px; }
+  .logo-img { max-height: 78px; max-width: min(360px, 100%); margin: 0 auto 20px; display: block; }
+  .logo-fallback {
+    display: none;
+    font-family: "Space Grotesk", sans-serif;
+    font-weight: 700;
+    font-size: 1.3rem;
+    letter-spacing: -0.02em;
+    margin-bottom: 18px;
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .eyebrow {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  h1 {
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 1.95rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 8px 0 0;
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 22px;
+    padding: 34px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+
+  label.field-label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 12px;
+    font-weight: 500;
+  }
+
+  /* Selector de caso: segmented control */
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 6px;
+    margin-bottom: 26px;
+  }
+  .segmented button {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    padding: 16px 12px;
+    min-height: 54px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    line-height: 1.3;
+  }
+  .segmented button.active {
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    color: white;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-1) 45%, transparent);
+  }
+
+  /* Ajustes opcionales: canas / tono de piel */
+  .select-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+  .select-field label {
+    display: block;
+    font-size: 0.74rem;
+    color: var(--muted);
+    margin-bottom: 9px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .select-field select {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .select-field select:focus {
+    outline: none;
+    border-color: var(--brand-2);
+  }
+  .select-field select option {
+    background: var(--bg);
+    color: var(--text);
+  }
+  .select-field input[type="text"] {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+  .select-field input[type="text"]::placeholder { color: var(--muted-2); }
+  .select-field input[type="text"]:focus {
+    outline: none;
+    border-color: var(--brand-2);
+  }
+
+  /* Desplegable personalizado (Canas / Tono de piel): sustituye al
+     <select> nativo del sistema operativo para que la estetica sea
+     100% la del software, no la del navegador. */
+  .custom-select {
+    position: relative;
+  }
+  .custom-select .cs-trigger {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 13px 12px;
+    font-size: 0.92rem;
+    font-family: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .custom-select .cs-trigger:hover {
+    border-color: color-mix(in srgb, var(--brand-2) 50%, var(--panel-border));
+  }
+  .custom-select.open .cs-trigger { border-color: var(--brand-2); }
+  .custom-select .cs-label { text-align: left; }
+  .custom-select .cs-chevron {
+    width: 14px; height: 14px;
+    flex-shrink: 0;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+  }
+  .custom-select.open .cs-chevron { transform: rotate(180deg); }
+
+  .custom-select .cs-panel {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 6px);
+    background: #1b2136;
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    z-index: 20;
+    max-height: 220px;
+    overflow-y: auto;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .custom-select.open .cs-panel {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  .custom-select .cs-option {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: var(--text);
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .custom-select .cs-option:hover { background: rgba(255,255,255,0.07); }
+  .custom-select .cs-option.selected {
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    color: white;
+    font-weight: 600;
+  }
+
+  /* Ficha del resultado: nombre paciente / tratamiento / clinica */
+  .result-plate {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .plate-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .plate-row span:empty { display: none; }
+  .plate-sub {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    margin-top: 6px;
+    font-size: 0.7rem;
+    color: var(--muted-2);
+    letter-spacing: 0.02em;
+  }
+  .plate-sub span:empty { display: none; }
+  .plate-sub .plate-brand { text-align: right; }
+
+  /* Zona de subida */
+  .dropzone {
+    border: 1.5px dashed var(--panel-border);
+    border-radius: 16px;
+    padding: 30px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--brand-1);
+    background: color-mix(in srgb, var(--brand-1) 6%, transparent);
+  }
+  .dropzone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .dropzone .icon {
+    width: 36px; height: 36px; margin: 0 auto 12px;
+    color: var(--muted);
+  }
+  .dropzone .dz-text { font-size: 0.95rem; color: var(--text); font-weight: 500; }
+  .dropzone .dz-sub { font-size: 0.82rem; color: var(--muted-2); margin-top: 4px; }
+  .dropzone.has-file .dz-preview {
+    width: 100%; max-height: 180px; object-fit: contain; border-radius: 10px; margin-bottom: 10px;
+  }
+
+  button#generateBtn {
+    width: 100%;
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 17px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--brand-1) 35%, transparent);
+  }
+  button#generateBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 30px color-mix(in srgb, var(--brand-1) 45%, transparent); }
+  button#generateBtn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+  .status-row {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin-top: 16px; min-height: 20px; font-size: 0.85rem; color: var(--muted);
+  }
+  .dots { display: flex; gap: 5px; }
+  .dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: linear-gradient(120deg, var(--brand-1), var(--brand-2));
+    animation: pulse 1.1s ease-in-out infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.15s; }
+  .dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes pulse { 0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); } 40% { opacity: 1; transform: scale(1); } }
+
+  .loading-row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .particle-canvas { display: block; flex-shrink: 0; }
+
+  /* Boton secundario: descargar resultado */
+  button#downloadBtn {
+    width: 100%;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 12px;
+    transition: all 0.15s ease;
+  }
+  button#downloadBtn:hover {
+    border-color: var(--brand-2);
+    background: color-mix(in srgb, var(--brand-2) 8%, transparent);
+  }
+
+  /* Comparador antes/despues */
+  .compare-wrap { margin-top: 24px; display: none; }
+  .compare-label { font-size: 0.78rem; color: var(--muted); margin-bottom: 10px; text-align: center; }
+  .compare {
+    position: relative;
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    background: #000;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .compare img {
+    display: block;
+    width: 100%;
+    height: auto;
+    pointer-events: none;
+  }
+  .compare .after-layer {
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    overflow: hidden;
+    width: 50%;
+  }
+  .compare .after-layer img { width: var(--compare-img-w, 100%); max-width: none; height: 100%; object-fit: cover; }
+  .compare .handle {
+    position: absolute;
+    top: 0; bottom: 0;
+    left: 50%;
+    width: 0;
+    pointer-events: none;
+  }
+  .compare .handle-line {
+    position: absolute; top: 0; bottom: 0; left: -1px;
+    width: 2px; background: rgba(255,255,255,0.85);
+  }
+  .compare .handle-grip {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.95);
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .compare .handle-grip svg { width: 16px; height: 16px; color: #111; }
+  .compare .tag {
+    position: absolute; bottom: 10px;
+    font-size: 0.68rem; font-weight: 600; letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    padding: 4px 9px;
+    border-radius: 6px;
+  }
+  .compare .tag.before { left: 10px; }
+  .compare .tag.after { right: 10px; }
+  .compare input[type="range"] {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0;
+    cursor: ew-resize;
+    margin: 0;
+  }
+
+  .disclaimer {
+    font-size: 0.78rem;
+    color: var(--muted-2);
+    text-align: center;
+    margin-top: 18px;
+    line-height: 1.5;
+  }
+  .legal-notice {
+    font-size: 0.68rem;
+    color: var(--muted-2);
+    text-align: center;
+    margin-top: 8px;
+    opacity: 0.65;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <img id="logoImg" class="logo-img" src="/logo.png" alt="Logo" onerror="this.style.display='none'; document.getElementById('logoFallback').style.display='block';" />
+      <div id="logoFallback" class="logo-fallback">Proyecta tu Clínica</div>
+      <div class="eyebrow">Tecnología · Precisión · Resultado</div>
+      <h1>Simulador de resultado</h1>
+    </header>
+
+    <div class="panel">
+      <label class="field-label">Datos de la ficha</label>
+      <div class="select-row">
+        <div class="select-field">
+          <label for="patientNameInput">Nombre del paciente</label>
+          <input type="text" id="patientNameInput" placeholder="Opcional" autocomplete="off" />
+        </div>
+        <div class="select-field">
+          <label for="clinicNameInput">Nombre de la clínica</label>
+          <input type="text" id="clinicNameInput" placeholder="Tu clínica" autocomplete="off" />
+        </div>
+      </div>
+
+      <label class="field-label">Tipo de caso</label>
+      <div class="segmented" id="segmented"></div>
+
+      <label class="field-label">Ajustes opcionales</label>
+      <div class="select-row">
+        <div class="select-field">
+          <label>Canas</label>
+          <div class="custom-select" id="canasSelect">
+            <button type="button" class="cs-trigger">
+              <span class="cs-label"></span>
+              <svg class="cs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="cs-panel" role="listbox"></div>
+          </div>
+        </div>
+        <div class="select-field">
+          <label>Tono de piel</label>
+          <div class="custom-select" id="fototipoSelect">
+            <button type="button" class="cs-trigger">
+              <span class="cs-label"></span>
+              <svg class="cs-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <div class="cs-panel" role="listbox"></div>
+          </div>
+        </div>
+      </div>
+
+      <label class="field-label">Foto del paciente</label>
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="photoInput" accept="image/*" />
+        <div id="dzContent">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 16V4M12 4l-4 4M12 4l4 4" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="dz-text">Arrastra una foto o haz clic</div>
+          <div class="dz-sub">JPG o PNG</div>
+        </div>
+      </div>
+
+      <button id="generateBtn" disabled>Generar simulación</button>
+
+      <div class="status-row" id="statusRow"></div>
+
+      <div class="compare-wrap" id="compareWrap">
+        <div class="compare-label">Desliza para comparar</div>
+        <div class="compare" id="compare">
+          <img id="beforeImg" alt="Antes" />
+          <div class="after-layer" id="afterLayer">
+            <img id="afterImg" alt="Después" />
+          </div>
+          <div class="handle" id="handle">
+            <div class="handle-line"></div>
+            <div class="handle-grip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 5l-5 7 5 7M16 5l5 7-5 7" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </div>
+          <span class="tag before">Antes</span>
+          <span class="tag after">Después</span>
+          <input type="range" id="compareSlider" min="0" max="100" value="50" />
+        </div>
+
+        <div class="result-plate" id="resultPlate">
+          <div class="plate-row">
+            <span id="platePatient"></span>
+            <span id="plateTreatment"></span>
+          </div>
+          <div class="plate-sub">
+            <span id="plateClinic"></span>
+            <span class="plate-brand">Generado con MicroStudioAI · Proyecta tu Clínica</span>
+          </div>
+        </div>
+
+        <button id="downloadBtn" type="button">Descargar imagen</button>
+      </div>
+
+      <div class="disclaimer">Simulación orientativa generada por IA. No constituye un resultado clínico garantizado.</div>
+      <div class="legal-notice">Tecnología desarrollada por Proyecta tu Clínica. Uso bajo licencia — prohibida su copia, ingeniería inversa o distribución sin autorización.</div>
+    </div>
+  </div>
+
+<script>
+  const segmented = document.getElementById("segmented");
+  const dropzone = document.getElementById("dropzone");
+  const dzContent = document.getElementById("dzContent");
+  const photoInput = document.getElementById("photoInput");
+  const generateBtn = document.getElementById("generateBtn");
+  const statusRow = document.getElementById("statusRow");
+  const compareWrap = document.getElementById("compareWrap");
+  const beforeImg = document.getElementById("beforeImg");
+  const afterImg = document.getElementById("afterImg");
+  const afterLayer = document.getElementById("afterLayer");
+  const handle = document.getElementById("handle");
+  const compareSlider = document.getElementById("compareSlider");
+  const compareEl = document.getElementById("compare");
+  const canasSelect = document.getElementById("canasSelect");
+  const fototipoSelect = document.getElementById("fototipoSelect");
+  const downloadBtn = document.getElementById("downloadBtn");
+  const patientNameInput = document.getElementById("patientNameInput");
+  const clinicNameInput = document.getElementById("clinicNameInput");
+  const platePatient = document.getElementById("platePatient");
+  const plateTreatment = document.getElementById("plateTreatment");
+  const plateClinic = document.getElementById("plateClinic");
+
+  let selectedFile = null;
+  let selectedCase = null;
+  let selectedCaseLabel = null;
+
+  // ---- Nombre de la clinica: se guarda en este dispositivo (localStorage) ----
+  const CLINIC_KEY = "ptc_clinic_name";
+  try {
+    clinicNameInput.value = localStorage.getItem(CLINIC_KEY) || "";
+  } catch (e) {}
+  clinicNameInput.addEventListener("input", () => {
+    try { localStorage.setItem(CLINIC_KEY, clinicNameInput.value); } catch (e) {}
+    updatePlate();
+  });
+  patientNameInput.addEventListener("input", updatePlate);
+
+  function updatePlate() {
+    const patient = patientNameInput.value.trim();
+    const clinic = clinicNameInput.value.trim();
+    platePatient.textContent = patient ? `Paciente: ${patient}` : "";
+    plateTreatment.textContent = selectedCaseLabel || "";
+    plateClinic.textContent = clinic;
+  }
+
+  // ---- Desplegable personalizado (sustituye al <select> nativo) ----
+  function buildCustomSelect(rootEl, items) {
+    let value = items[0]?.value ?? "";
+    const trigger = rootEl.querySelector(".cs-trigger");
+    const label = rootEl.querySelector(".cs-label");
+    const panel = rootEl.querySelector(".cs-panel");
+
+    function render() {
+      panel.innerHTML = items
+        .map((it) => `<div class="cs-option${it.value === value ? " selected" : ""}" data-value="${it.value}">${it.label}</div>`)
+        .join("");
+      const found = items.find((it) => it.value === value);
+      label.textContent = found ? found.label : "";
+      panel.querySelectorAll(".cs-option").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          value = opt.dataset.value;
+          render();
+          close();
+        });
+      });
+    }
+    function onOutside(e) {
+      if (!rootEl.contains(e.target)) close();
+    }
+    function open() {
+      rootEl.classList.add("open");
+      document.addEventListener("click", onOutside);
+    }
+    function close() {
+      rootEl.classList.remove("open");
+      document.removeEventListener("click", onOutside);
+    }
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      rootEl.classList.contains("open") ? close() : open();
+    });
+
+    render();
+    return {
+      get value() { return value; },
+      setItems(newItems) {
+        items = newItems;
+        if (!items.find((it) => it.value === value)) value = items[0]?.value ?? "";
+        render();
+      }
+    };
+  }
+
+  // ---- Particulas durante la generacion: refuerzan la sensacion de
+  // "IA procesando" sin romper la estetica minimalista. ----
+  let particleAnimId = null;
+  function mixColor(c1, c2, t) {
+    const p1 = parseInt(c1.slice(1), 16);
+    const p2 = parseInt(c2.slice(1), 16);
+    const r1 = (p1 >> 16) & 255, g1 = (p1 >> 8) & 255, b1 = p1 & 255;
+    const r2 = (p2 >> 16) & 255, g2 = (p2 >> 8) & 255, b2 = p2 & 255;
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+  function startParticles(canvas) {
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    const size = 26;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    const cx = size / 2, cy = size / 2;
+    const count = 10;
+    const particles = Array.from({ length: count }, (_, i) => ({
+      angle: (i / count) * Math.PI * 2,
+      radius: 5 + Math.random() * 5,
+      speed: 0.018 + Math.random() * 0.02,
+      size: 1 + Math.random() * 1.3,
+      t: Math.random() * 10
+    }));
+
+    function frame() {
+      ctx.clearRect(0, 0, size, size);
+      particles.forEach((p, i) => {
+        p.angle += p.speed;
+        p.t += 0.05;
+        const wobble = Math.sin(p.t) * 1.5;
+        const r = p.radius + wobble;
+        const x = cx + Math.cos(p.angle) * r;
+        const y = cy + Math.sin(p.angle) * r;
+        const tColor = (Math.sin(p.angle + i) + 1) / 2;
+        ctx.beginPath();
+        ctx.fillStyle = mixColor("#4728A2", "#19A8B3", tColor);
+        ctx.globalAlpha = 0.5 + 0.5 * Math.sin(p.t);
+        ctx.arc(x, y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      particleAnimId = requestAnimationFrame(frame);
+    }
+    frame();
+  }
+  function stopParticles() {
+    if (particleAnimId) cancelAnimationFrame(particleAnimId);
+    particleAnimId = null;
+  }
+
+  // ---- Carga los tipos de caso (definidos en prompts.js, backend) ----
+  fetch("/api/cases")
+    .then((r) => r.json())
+    .then((cases) => {
+      segmented.innerHTML = cases
+        .map((c, i) => `<button type="button" data-value="${c.value}" data-label="${c.label}" class="${i === 0 ? "active" : ""}">${c.label}</button>`)
+        .join("");
+      selectedCase = cases[0]?.value || null;
+      selectedCaseLabel = cases[0]?.label || null;
+      segmented.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          segmented.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          selectedCase = btn.dataset.value;
+          selectedCaseLabel = btn.dataset.label;
+        });
+      });
+    })
+    .catch(() => {
+      statusRow.textContent = "No se pudieron cargar los tipos de caso.";
+    });
+
+  // ---- Carga los ajustes opcionales (canas / tono de piel) ----
+  let canasCS = null;
+  let fototipoCS = null;
+  fetch("/api/options")
+    .then((r) => r.json())
+    .then((opts) => {
+      canasCS = buildCustomSelect(canasSelect, opts.canas && opts.canas.length ? opts.canas : [{ value: "", label: "Sin canas" }]);
+      fototipoCS = buildCustomSelect(fototipoSelect, opts.fototipos && opts.fototipos.length ? opts.fototipos : [{ value: "", label: "No especificar" }]);
+    })
+    .catch(() => {});
+
+  // ---- Dropzone: click, drag & drop ----
+  ["dragenter", "dragover"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("dragover"); })
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("dragover"); })
+  );
+  dropzone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer.files[0];
+    if (file) { photoInput.files = e.dataTransfer.files; handleFile(file); }
+  });
+  photoInput.addEventListener("change", () => {
+    const file = photoInput.files[0];
+    if (file) handleFile(file);
+  });
+
+  function handleFile(file) {
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      dzContent.innerHTML = `<img class="dz-preview" src="${e.target.result}" /><div class="dz-sub">${file.name}</div>`;
+      dropzone.classList.add("has-file");
+      generateBtn.disabled = false;
+      statusRow.textContent = "";
+      compareWrap.style.display = "none";
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function setStatus(html) { statusRow.innerHTML = html; }
+  const loadingDots = `<div class="loading-row"><canvas id="particleCanvas" class="particle-canvas"></canvas><span>Generando</span><div class="dots"><span></span><span></span><span></span></div></div>`;
+
+  generateBtn.addEventListener("click", async () => {
+    if (!selectedFile || !selectedCase) return;
+
+    generateBtn.disabled = true;
+    setStatus(loadingDots);
+    startParticles(document.getElementById("particleCanvas"));
+    compareWrap.style.display = "none";
+
+    try {
+      const imageBase64 = await fileToBase64(selectedFile);
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imageBase64,
+          mimeType: selectedFile.type || "image/jpeg",
+          caseValue: selectedCase,
+          canas: canasCS ? canasCS.value : "",
+          fototipo: fototipoCS ? fototipoCS.value : ""
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Error desconocido");
+
+      beforeImg.src = URL.createObjectURL(selectedFile);
+      afterImg.src = `data:${data.mimeType};base64,${data.imageBase64}`;
+      compareWrap.style.display = "block";
+      compareSlider.value = 50;
+      requestAnimationFrame(initCompare);
+      updatePlate();
+      setStatus("Listo.");
+    } catch (err) {
+      setStatus("Error: " + err.message);
+    } finally {
+      stopParticles();
+      generateBtn.disabled = false;
+    }
+  });
+
+  // ---- Descargar la imagen generada, con la ficha (paciente / tratamiento /
+  // clinica / marca) incrustada como pie de foto, para que viaje pegada a la
+  // imagen cuando el paciente la comparta por WhatsApp o similar. ----
+  downloadBtn.addEventListener("click", () => {
+    if (!afterImg.src) return;
+
+    const img = new Image();
+    img.onload = () => {
+      const footer = Math.max(90, Math.round(img.naturalHeight * 0.11));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight + footer;
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#141929";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+
+      ctx.fillStyle = "rgba(255,255,255,0.04)";
+      ctx.fillRect(0, img.naturalHeight, canvas.width, footer);
+      ctx.strokeStyle = "rgba(255,255,255,0.14)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, img.naturalHeight + 0.5);
+      ctx.lineTo(canvas.width, img.naturalHeight + 0.5);
+      ctx.stroke();
+
+      const pad = Math.max(20, Math.round(canvas.width * 0.03));
+      const patient = patientNameInput.value.trim();
+      const clinic = clinicNameInput.value.trim();
+      const treatment = selectedCaseLabel || "";
+
+      const mainSize = Math.max(16, Math.round(canvas.width * 0.024));
+      const subSize = Math.max(12, Math.round(canvas.width * 0.016));
+      const rowY1 = img.naturalHeight + footer * 0.4;
+      const rowY2 = img.naturalHeight + footer * 0.74;
+
+      ctx.textBaseline = "middle";
+      ctx.font = `600 ${mainSize}px Arial, sans-serif`;
+      ctx.fillStyle = "#f5f6f8";
+      if (patient) {
+        ctx.textAlign = "left";
+        ctx.fillText(`Paciente: ${patient}`, pad, rowY1);
+      }
+      if (treatment) {
+        ctx.textAlign = "right";
+        ctx.fillText(treatment, canvas.width - pad, rowY1);
+      }
+
+      ctx.font = `500 ${subSize}px Arial, sans-serif`;
+      ctx.fillStyle = "#8b8f9a";
+      if (clinic) {
+        ctx.textAlign = "left";
+        ctx.fillText(clinic, pad, rowY2);
+      }
+      ctx.textAlign = "right";
+      ctx.fillText("Generado con MicroStudioAI · Proyecta tu Clínica", canvas.width - pad, rowY2);
+
+      canvas.toBlob((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "simulacion-resultado.png";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, "image/png");
+    };
+    img.src = afterImg.src;
+  });
+
+  // ---- Slider antes/despues ----
+  function updateCompare(pct) {
+    afterLayer.style.width = pct + "%";
+    handle.style.left = pct + "%";
+    const width = compareEl.clientWidth;
+    afterImg.style.width = width + "px";
+  }
+  function initCompare() {
+    updateCompare(compareSlider.value);
+  }
+  compareSlider.addEventListener("input", () => updateCompare(compareSlider.value));
+  window.addEventListener("resize", () => { if (compareWrap.style.display !== "none") updateCompare(compareSlider.value); });
+</script>
+</body>
+</html>
